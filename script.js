@@ -50,27 +50,47 @@ window.onload = function () {
         return points;
     }
 
-    var c;
-    for (var i = 0; i < NUMBER_MARKINGS; i++) {
-
-        markings.push(getRandomPoint());
-        c = document.createElementNS(NS_SVG, "circle");
-        c.setAttribute("cx", markings[i].x);
-        c.setAttribute("cy", markings[i].y);
-        c.setAttribute("r", "2");
-        svg.appendChild(c);
+    function init() {
+        var i;
+        for (i = 0; i < NUMBER_MARKINGS; i++) {
+            markings.push(getRandomPoint());
+        }
     }
 
+    function drawMarks(marks) {
+        var i,
+            circle;
+        for (i = 0; i < marks.length; i++) {
+            circle = document.createElementNS(NS_SVG, "circle");
+            circle.setAttribute("cx", marks[i].x);
+            circle.setAttribute("cy", marks[i].y);
+            circle.setAttribute("r", "2");
+            svg.appendChild(circle);
+        }
+    }
+
+    function drawLines(marks, points) {
+        var i,
+            line;
+        for (i = 0; i < points.length; i++) {
+            line = document.createElementNS(NS_SVG, "line");
+            line.setAttribute("x1", marks[i].x);
+            line.setAttribute("y1", marks[i].y);
+            line.setAttribute("x2", points[i].x);
+            line.setAttribute("y2", points[i].y);
+            line.setAttribute("stroke", "hsl(0,100%," + (points[i].l/(2*(width+height)))*100 + "%)");
+            svg.appendChild(line);
+        }
+    }
+
+    function tick() {
+
+    }
+
+    init();
     projected = project(markings);
-    var l;
-    for (var i = 0; i < projected.length; i++) {
-        l = document.createElementNS(NS_SVG, "line");
-        l.setAttribute("x1", markings[i].x);
-        l.setAttribute("y1", markings[i].y);
-        l.setAttribute("x2", projected[i].x);
-        l.setAttribute("y2", projected[i].y);
-//        l.setAttribute("stroke", "hsl(0,100%," + (projected[i].l/(2*(width+height)))*100 + "%)");
-        svg.appendChild(l);
-    }
+    drawMarks(markings);
+    drawLines(markings, projected);
 
+    tick();
 };
