@@ -16,25 +16,37 @@ window.onload = function () {
     }
 
     function translate(points, dx, dy) {
-        return points.map(function (p) {
-            return {x: p.x - dx, y: p.y - dy, l: p.l}
+        points.forEach(function (p) {
+            p.x -= dx;
+            p.y -= dy;
         });
     }
 
     function project(points) {
-        var pts = translate(points, w2, h2);
-        pts = pts.map(function (p) {
+        var pts = points.map(function (p) {
+            var point = {x: +p.x, y: +p.y, m: p};
+            p.p = point;
+            return point;
+        });
+
+        translate(pts, w2, h2);
+        pts.forEach(function (p) {
             var m = p.y / p.x,
                 x = p.y >= 0 ? h2 / m : -h2 / m,
                 y = p.x >= 0 ? w2 * m : -w2 * m;
 
             if (Math.abs(x) > w2) {
-                return x >= 0 ? {x: w2, y: y} : {x: -w2, y: y};
+                p.x = x >= 0 ? w2 : -w2;
+                p.y = y;
             } else {
-                return y >= 0 ? {x: x, y: h2} : {x: x, y: -h2};
+                p.x = x;
+                p.y = y >= 0 ? h2 : -h2;
             }
         });
-        return linearize(translate(pts, -w2, -h2));
+
+        console.log(pts);
+        translate(pts, -w2, -h2);
+        return linearize(pts);
     }
 
     function linearize(points) {
@@ -45,6 +57,25 @@ window.onload = function () {
                 p.l = p.x == 0 ? 2 * (width + height) - p.y : width + p.y;
             } else {
                 p.l = 2 * width + height - p.x;
+            }
+        });
+        return points;
+    }
+
+    function delinearize(points) {
+        points.forEach(function (p) {
+            if (p.l < width) {
+                p.x = p.l;
+                p.y = 0;
+            } else if (p.l < width + height) {
+                p.x = width;
+                p.y = p.l - width;
+            } else if (p.l < 2 * width + height) {
+                p.x = p.l - width - height;
+                p.y = height;
+            } else {
+                p.x = 0;
+                p.y = p.l - (2 * width + height);
             }
         });
         return points;
@@ -78,10 +109,12 @@ window.onload = function () {
             line.setAttribute("y1", marks[i].y);
             line.setAttribute("x2", points[i].x);
             line.setAttribute("y2", points[i].y);
-            line.setAttribute("stroke", "hsl(0,100%," + (points[i].l/(2*(width+height)))*100 + "%)");
+            line.setAttribute("stroke", "hsl(0,100%," + (points[i].l / (2 * (width + height))) * 100 + "%)");
             svg.appendChild(line);
         }
     }
+
+    var alpha = 0.99;
 
     function tick() {
 
@@ -92,5 +125,9 @@ window.onload = function () {
     drawMarks(markings);
     drawLines(markings, projected);
 
-    tick();
-};
+    while (alpha > 0.01) {
+        alpha *= alpha;
+        tick();
+    }
+}
+;
