@@ -1,5 +1,5 @@
 window.onload = function () {
-    const NUMBER_MARKINGS = 100,
+    const NUMBER_MARKINGS = 30,
         NS_SVG = "http://www.w3.org/2000/svg";
 
     var svg = document.getElementById("acgraphic"),
@@ -7,12 +7,16 @@ window.onload = function () {
         w2 = width / 2,
         height = +svg.getAttribute("height"),
         h2 = height / 2,
+        w2h2 = 2 * (width + height),
 
         markings = [],
-        projected;
+        projected = [],
+
+        alpha = 0.999;
 
     function getRandomPoint() {
-        return {x: Math.random() * width, y: Math.random() * height};
+        return {x: normalRandom() * width+1.5*w2, y: normalRandom() * height+1.5*h2};
+        //return {x: Math.random() * width, y: Math.random() * height};
     }
 
     function translate(points, dx, dy) {
@@ -24,7 +28,7 @@ window.onload = function () {
 
     function project(points) {
         var pts = points.map(function (p) {
-            var point = {x: +p.x, y: +p.y, m: p};
+            var point = {x: p.x, y: p.y, m: p, l: 0, f: 0};
             p.p = point;
             return point;
         });
@@ -44,7 +48,6 @@ window.onload = function () {
             }
         });
 
-        console.log(pts);
         translate(pts, -w2, -h2);
         return linearize(pts);
     }
@@ -54,7 +57,7 @@ window.onload = function () {
             if (p.y == 0) {
                 p.l = p.x;
             } else if (p.y < height) {
-                p.l = p.x == 0 ? 2 * (width + height) - p.y : width + p.y;
+                p.l = p.x == 0 ? w2h2 - p.y : width + p.y;
             } else {
                 p.l = 2 * width + height - p.x;
             }
@@ -71,11 +74,11 @@ window.onload = function () {
                 p.x = width;
                 p.y = p.l - width;
             } else if (p.l < 2 * width + height) {
-                p.x = p.l - width - height;
+                p.x = -p.l + 2 * width + height;
                 p.y = height;
             } else {
                 p.x = 0;
-                p.y = p.l - (2 * width + height);
+                p.y = -p.l + w2h2;
             }
         });
         return points;
@@ -86,6 +89,10 @@ window.onload = function () {
         for (i = 0; i < NUMBER_MARKINGS; i++) {
             markings.push(getRandomPoint());
         }
+
+        projected = project(markings);
+        drawMarks(markings);
+        drawLines(markings);
     }
 
     function drawMarks(marks) {
@@ -100,34 +107,109 @@ window.onload = function () {
         }
     }
 
-    function drawLines(marks, points) {
-        var i,
-            line;
-        for (i = 0; i < points.length; i++) {
-            line = document.createElementNS(NS_SVG, "line");
-            line.setAttribute("x1", marks[i].x);
-            line.setAttribute("y1", marks[i].y);
-            line.setAttribute("x2", points[i].x);
-            line.setAttribute("y2", points[i].y);
-            line.setAttribute("stroke", "hsl(0,100%," + (points[i].l / (2 * (width + height))) * 100 + "%)");
-            svg.appendChild(line);
+    function drawLines(marks) {
+        var i;
+        for (i = 0; i < marks.length; i++) {
+            marks[i].line = document.createElementNS(NS_SVG, "line");
+            svg.appendChild(marks[i].line);
         }
     }
 
-    var alpha = 0.99;
-
-    function tick() {
-
+    function updateLines(marks) {
+        var i,
+            line;
+        for (i = 0; i < marks.length; i++) {
+            line = marks[i].line;
+            line.setAttribute("x1", marks[i].x);
+            line.setAttribute("y1", marks[i].y);
+            line.setAttribute("x2", marks[i].p.x);
+            line.setAttribute("y2", marks[i].p.y);
+            //line.setAttribute("stroke", "hsl(0,100%," + (marks[i].p.l / (w2h2)) * 100 + "%)");
+        }
     }
 
     init();
-    projected = project(markings);
-    drawMarks(markings);
-    drawLines(markings, projected);
+
+    function tick() {
+
+        var i,
+            j,
+            o,
+            p,
+            d,
+            f,
+            n = projected.length;
+
+        for (i = 0; i < n; i++) {
+            p = projected[i];
+            d = 0;
+            j = i;
+            while (d < 250) {
+                o = projected[++j%n];
+                d = o.l - p.l;
+                d = d > 0 ? d : d + w2h2;
+                f = Math.min(5,20 *alpha / Math.pow(d ? d : 1, 0.5));
+                p.f -= f;
+                o.f += f;
+            }
+        }
+
+        for (i = 0; i < n; i++) {
+            p = projected[i];
+            p.l += p.f;
+            p.f = 0;
+        }
+    }
+
+    document.querySelector("body")
+        .addEventListener("click", function () {
+            alpha *= .995;
+            projected.sort(lComparator);
+            tick();
+            delinearize(projected);
+            updateLines(markings);
+        });
+
+    function lComparator(pa, pb) {
+        return pa.l - pb.l;
+    }
 
     while (alpha > 0.01) {
         alpha *= alpha;
+        projected.sort(lComparator);
         tick();
+        delinearize(projected);
+        updateLines(markings);
+
     }
 }
 ;
+
+spareRandom = null;
+function normalRandom()
+{
+    var val, u, v, s, mul;
+
+    if(spareRandom !== null)
+    {
+        val = spareRandom;
+        spareRandom = null;
+    }
+    else
+    {
+        do
+        {
+            u = Math.random()*2-1;
+            v = Math.random()*2-1;
+
+            s = u*u+v*v;
+        } while(s === 0 || s >= 1);
+
+        mul = Math.sqrt(-2 * Math.log(s) / s);
+
+        val = u * mul;
+        spareRandom = v * mul;
+    }
+
+    return val / 14;	// 7 standard deviations on either side
+}
