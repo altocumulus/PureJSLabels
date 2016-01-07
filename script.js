@@ -1,11 +1,13 @@
 window.onload = function () {
+
     const NUMBER_MARKINGS = 30,
         NS_SVG = "http://www.w3.org/2000/svg";
 
     var svg = document.getElementById("acgraphic"),
-        width = +svg.getAttribute("width"),
+        viewbox = svg.viewBox.animVal,
+        width = viewbox.width, //+svg.getAttribute("width"),
         w2 = width / 2,
-        height = +svg.getAttribute("height"),
+        height = viewbox.height, //+svg.getAttribute("height"),
         h2 = height / 2,
         w2h2 = 2 * (width + height),
 
@@ -14,8 +16,8 @@ window.onload = function () {
 
         alpha = 0.999;
 
-    function getRandomPoint() {
-        return {x: normalRandom() * width+1.5*w2, y: normalRandom() * height+1.5*h2};
+    function getRandomPoint(n) {
+        return {x: normalRandom() * width + 1.5 * w2, y: normalRandom() * height + 1.5 * h2, n: n};
         //return {x: Math.random() * width, y: Math.random() * height};
     }
 
@@ -87,7 +89,7 @@ window.onload = function () {
     function init() {
         var i;
         for (i = 0; i < NUMBER_MARKINGS; i++) {
-            markings.push(getRandomPoint());
+            markings.push(getRandomPoint(i));
         }
 
         projected = project(markings);
@@ -145,10 +147,10 @@ window.onload = function () {
             d = 0;
             j = i;
             while (d < 250) {
-                o = projected[++j%n];
+                o = projected[++j % n];
                 d = o.l - p.l;
                 d = d > 0 ? d : d + w2h2;
-                f = Math.min(5,20 *alpha / Math.pow(d ? d : 1, 0.5));
+                f = Math.min(5, 20 * alpha / Math.pow(d ? d : 1, 0.5));
                 p.f -= f;
                 o.f += f;
             }
@@ -175,35 +177,58 @@ window.onload = function () {
     }
 
     while (alpha > 0.01) {
-        alpha *= alpha;
+        alpha *= 0.995;
         projected.sort(lComparator);
         tick();
         delinearize(projected);
         updateLines(markings);
-
     }
-}
-;
+
+    var padding = { left: 50, top: 50, right: 50, bottom: 100},
+        W = 960,
+        H = W / (width / height);
+    padding.bottom = H - padding.top - (W - padding.left - padding.right) / (width / height);
+    var outerSvg = document.createElementNS(NS_SVG, "svg");
+    outerSvg.setAttribute("width", W);
+    outerSvg.setAttribute("height", H);
+
+    var g = document.createElementNS(NS_SVG, "g");
+    g.setAttribute("transform", "translate(" + padding.left + " " + padding.top + ")");
+    outerSvg.appendChild(g);
+
+    var borderRect = document.createElementNS(NS_SVG, "rect");
+    borderRect.setAttribute("x", "-1");
+    borderRect.setAttribute("y", "-1");
+    borderRect.setAttribute("width", (W - padding.left - padding.right + 2));
+    borderRect.setAttribute("height", (H - padding.top - padding.bottom + 2));
+    borderRect.setAttribute("stroke", "black");
+    borderRect.setAttribute("fill", "none");
+    g.appendChild(borderRect);
+
+    svg.setAttribute("width", (W - padding.left - padding.right).toString());
+    svg.setAttribute("height", (H - padding.top - padding.bottom));
+
+    var body = document.getElementsByTagName("body").item(0);
+    body.appendChild(outerSvg);
+    g.appendChild(body.removeChild(svg));
+};
 
 spareRandom = null;
-function normalRandom()
-{
+function normalRandom() {
     var val, u, v, s, mul;
 
-    if(spareRandom !== null)
-    {
+    if (spareRandom !== null) {
         val = spareRandom;
         spareRandom = null;
     }
-    else
-    {
+    else {
         do
         {
-            u = Math.random()*2-1;
-            v = Math.random()*2-1;
+            u = Math.random() * 2 - 1;
+            v = Math.random() * 2 - 1;
 
-            s = u*u+v*v;
-        } while(s === 0 || s >= 1);
+            s = u * u + v * v;
+        } while (s === 0 || s >= 1);
 
         mul = Math.sqrt(-2 * Math.log(s) / s);
 
