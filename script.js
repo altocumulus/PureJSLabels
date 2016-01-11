@@ -21,13 +21,6 @@ window.onload = function () {
         //return {x: Math.random() * width, y: Math.random() * height};
     }
 
-    function translate(points, dx, dy) {
-        points.forEach(function (p) {
-            p.x -= dx;
-            p.y -= dy;
-        });
-    }
-
     function project(points) {
         var pts = points.map(function (p) {
             var point = {x: p.x, y: p.y, m: p, l: 0, f: 0};
@@ -35,22 +28,20 @@ window.onload = function () {
             return point;
         });
 
-        translate(pts, w2, h2);
         pts.forEach(function (p) {
-            var m = p.y / p.x,
-                x = p.y >= 0 ? h2 / m : -h2 / m,
-                y = p.x >= 0 ? w2 * m : -w2 * m;
+            var m = (p.y - h2) / (p.x - w2),
+                x = p.y >= h2 ? h2 / m + w2 : -h2 / m + w2,
+                y = p.x >= w2 ? w2 * m + h2 : -w2 * m + h2;
 
-            if (Math.abs(x) > w2) {
-                p.x = x >= 0 ? w2 : -w2;
+            if (Math.abs(x) > width) {
+                p.x = x >= w2 ? width : 0;
                 p.y = y;
             } else {
                 p.x = x;
-                p.y = y >= 0 ? h2 : -h2;
+                p.y = y >= h2 ? height : 0;
             }
         });
 
-        translate(pts, -w2, -h2);
         return linearize(pts);
     }
 
